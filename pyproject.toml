@@ -1,0 +1,21 @@
+[project]
+name = "videovoicecapturer"
+version = "0.1.0"
+description = "Extract audio from YouTube videos as WAV/MP3"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "yt-dlp>=2024.1.0",
+    "ffmpeg-python>=0.2.0",
+    "click>=8.1.0",
+]
+
+[project.scripts]
+videovoicecapturer = "videovoicecapturer.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
