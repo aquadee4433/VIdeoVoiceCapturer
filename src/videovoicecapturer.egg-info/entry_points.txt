@@ -1,0 +1,3 @@
+[console_scripts]
+vvc = videovoicecapturer.cli:main
+

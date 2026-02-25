@@ -1,0 +1,15 @@
+#!/bin/bash
+# VIdeoVoiceCapturer - YouTube Audio Extractor
+# Usage: vvc "URL" [-o output] [-f format] [-j jobs] [-v] [--continue-on-error]
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
+
+# Check if running from project directory
+if [ -f "$PROJECT_DIR/src/videovoicecapturer/cli.py" ]; then
+    export PYTHONPATH="$PROJECT_DIR/src"
+    exec python3 -m videovoicecapturer.cli "$@"
+else
+    echo "Error: Run this script from the project directory"
+    exit 1
+fi
