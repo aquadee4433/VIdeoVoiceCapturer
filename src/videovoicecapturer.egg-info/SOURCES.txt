@@ -4,6 +4,7 @@ setup.py
 src/videovoicecapturer/__init__.py
 src/videovoicecapturer/cli.py
 src/videovoicecapturer/extractor.py
+src/videovoicecapturer/trainer.py
 src/videovoicecapturer.egg-info/PKG-INFO
 src/videovoicecapturer.egg-info/SOURCES.txt
 src/videovoicecapturer.egg-info/dependency_links.txt

@@ -1,3 +1,6 @@
-"""VideoVoiceCapturer - Extract audio from YouTube videos."""
+"""VideoVoiceCapturer - Extract audio from YouTube videos and train voice models."""
 
-__version__ = "0.1.0"
+from .extractor import AudioExtractor, AudioExtractionError
+from .trainer import XTTSTrainer, XTTSTrainingError
+
+__version__ = "0.2.0"

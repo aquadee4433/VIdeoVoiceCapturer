@@ -7,9 +7,16 @@ from pathlib import Path
 import click
 
 from .extractor import AudioExtractor, AudioExtractionError
+from .trainer import XTTSTrainer, XTTSTrainingError
 
 
-@click.command()
+@click.group()
+def cli():
+    """VideoVoiceCapturer - Extract audio and train voice models."""
+    pass
+
+
+@cli.command("extract")
 @click.argument("urls", nargs=-1, required=True)
 @click.option(
     "-o", "--output", "output_dir",
@@ -34,7 +41,7 @@ from .extractor import AudioExtractor, AudioExtractionError
     is_flag=True,
     help="Continue processing remaining URLs if one fails"
 )
-def main(urls: tuple, output_dir: str, format: str, verbose: bool, max_workers: int, continue_on_error: bool):
+def extract(urls: tuple, output_dir: str, format: str, verbose: bool, max_workers: int, continue_on_error: bool):
     """Extract audio from YouTube videos.
     
     URL: One or more YouTube video URLs
@@ -42,13 +49,13 @@ def main(urls: tuple, output_dir: str, format: str, verbose: bool, max_workers: 
     Examples:
     
         # Single video
-        vvc "https://youtube.com/watch?v=..." -o ./output -f mp3
+        vvc extract "https://youtube.com/watch?v=..." -o ./output -f mp3
         
         # Multiple videos (batch)
-        vvc "url1" "url2" "url3" -o ./output -f mp3
+        vvc extract "url1" "url2" "url3" -o ./output -f mp3
         
         # Parallel processing (3 at a time)
-        vvc "url1" "url2" "url3" "url4" "url5" -j 3
+        vvc extract "url1" "url2" "url3" "url4" "url5" -j 3
     """
     urls = list(urls)
     
@@ -95,6 +102,161 @@ def main(urls: tuple, output_dir: str, format: str, verbose: bool, max_workers: 
     
     # Exit with error if any failed
     if results["failed"] and not continue_on_error:
+        sys.exit(1)
+
+
+@cli.command("prepare")
+@click.argument("audio_files", nargs=-1, required=True)
+@click.option(
+    "-o", "--output", "output_dir",
+    default="./dataset",
+    help="Output directory for prepared dataset"
+)
+@click.option(
+    "-n", "--name", "model_name",
+    default="myvoice",
+    help="Name for the voice model"
+)
+@click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
+def prepare(audio_files: tuple, output_dir: str, model_name: str, verbose: bool):
+    """Prepare audio files for XTTS voice training.
+    
+    AUDIO_FILES: One or more audio files (wav/mp3)
+    
+    Examples:
+    
+        # Prepare audio files
+        vvc prepare audio1.wav audio2.wav audio3.wav -o ./dataset -n myvoice
+    """
+    audio_files = list(audio_files)
+    
+    click.echo(f"Preparing {len(audio_files)} audio files for training...")
+    
+    try:
+        trainer = XTTSTrainer(
+            dataset_path=output_dir,
+            output_dir=output_dir,
+            model_name=model_name
+        )
+        
+        dataset_path = trainer.prepare_dataset(audio_files)
+        
+        click.echo(f"\n✓ Dataset prepared: {dataset_path}")
+        click.echo("\nNote: Edit metadata.csv with actual transcripts for better results!")
+        
+    except Exception as e:
+        click.echo(f"✗ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command("train")
+@click.option(
+    "-d", "--dataset", "dataset_path",
+    required=True,
+    help="Path to prepared dataset directory"
+)
+@click.option(
+    "-o", "--output", "output_dir",
+    default="./models",
+    help="Output directory for trained model"
+)
+@click.option(
+    "-n", "--name", "model_name",
+    default="myvoice",
+    help="Name for the voice model"
+)
+@click.option(
+    "-e", "--epochs",
+    default=50,
+    type=int,
+    help="Number of training epochs (default: 50)"
+)
+@click.option(
+    "-b", "--batch-size",
+    default=8,
+    type=int,
+    help="Batch size (default: 8)"
+)
+@click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
+def train(dataset_path: str, output_dir: str, model_name: str, epochs: int, batch_size: int, verbose: bool):
+    """Train XTTS v2 voice model from prepared dataset.
+    
+    Examples:
+    
+        # Train with default settings
+        vvc train -d ./dataset/myvoice -o ./models -n myvoice
+        
+        # Train for more epochs
+        vvc train -d ./dataset/myvoice -e 100 -b 4
+    """
+    click.echo(f"Training XTTS v2 voice model: {model_name}")
+    click.echo(f"Dataset: {dataset_path}")
+    click.echo(f"Epochs: {epochs}, Batch size: {batch_size}")
+    
+    try:
+        trainer = XTTSTrainer(
+            dataset_path=dataset_path,
+            output_dir=output_dir,
+            model_name=model_name
+        )
+        
+        model_path = trainer.train(
+            dataset_path=dataset_path,
+            epochs=epochs,
+            batch_size=batch_size,
+            verbose=verbose
+        )
+        
+        click.echo(f"\n✓ Training complete!")
+        click.echo(f"✓ Model saved: {model_path}")
+        
+    except Exception as e:
+        click.echo(f"✗ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command("infer")
+@click.argument("text", required=True)
+@click.option(
+    "-m", "--model", "model_path",
+    required=True,
+    help="Path to trained XTTS model"
+)
+@click.option(
+    "-o", "--output", "output_path",
+    default="output.wav",
+    help="Output audio file path"
+)
+def infer(text: str, model_path: str, output_path: str):
+    """Generate speech using trained XTTS voice model.
+    
+    TEXT: Text to synthesize
+    
+    Examples:
+    
+        # Generate speech
+        vvc infer "Hello world" -m ./models/myvoice.pth -o hello.wav
+    """
+    click.echo(f"Generating speech: '{text}'")
+    click.echo(f"Model: {model_path}")
+    
+    try:
+        trainer = XTTSTrainer(
+            dataset_path=".",
+            output_dir=Path(model_path).parent,
+            model_name=Path(model_path).stem
+        )
+        
+        output = trainer.infer(
+            text=text,
+            model_path=model_path,
+            output_path=output_path
+        )
+        
+        click.echo(f"\n✓ Generated: {output}")
+        
+    except Exception as e:
+        click.echo(f"✗ Error: {e}", err=True)
         sys.exit(1)
 
 
@@ -163,4 +325,4 @@ def _process_parallel(urls: list, output_dir: str, format: str, verbose: bool, m
 
 
 if __name__ == "__main__":
-    main()
+    cli()
