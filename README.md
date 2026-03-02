@@ -1,4 +1,4 @@
-# VIdeoVoiceCapturer
+# VideoVoiceCapturer
 
 CLI tool to capture audio from YouTube videos and train voice cloning models.
 
