@@ -105,6 +105,63 @@ def extract(urls: tuple, output_dir: str, format: str, verbose: bool, max_worker
         sys.exit(1)
 
 
+@cli.command("convert")
+@click.argument("files", nargs=-1, required=True)
+@click.option(
+    "-o", "--output", "output_dir",
+    default=".",
+    help="Output directory for audio files"
+)
+@click.option(
+    "-f", "--format",
+    type=click.Choice(["wav", "mp3"], case_sensitive=False),
+    default="wav",
+    help="Output audio format"
+)
+@click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
+def convert(files: tuple, output_dir: str, format: str, verbose: bool):
+    """Convert local audio/video files to audio format.
+    
+    FILES: One or more local audio/video files
+    
+    Examples:
+    
+        # Convert video file to wav
+        vvc convert video.mp4 -o ./output -f wav
+        
+        # Convert multiple files
+        vvc convert file1.mp4 file2.mov file3.avi -o ./audio -f mp3
+    """
+    files = list(files)
+    
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+    elif output_path.is_file():
+        click.echo(f"✗ Error: Output path '{output_dir}' is a file, not a directory", err=True)
+        sys.exit(1)
+    
+    format = format.lower().lstrip(".")
+    
+    click.echo(f"Converting {len(files)} file(s) to {format}...")
+    
+    results = {"success": [], "failed": []}
+    
+    for i, file in enumerate(files, 1):
+        try:
+            extractor = AudioExtractor(output_dir)
+            output_file = extractor.extract_from_file(file, format=format, verbose=verbose)
+            results["success"].append((file, output_file))
+            click.echo(f"[{i}/{len(files)}] ✓ {Path(file).name} -> {output_file}")
+        except Exception as e:
+            results["failed"].append((file, str(e)))
+            click.echo(f"[{i}/{len(files)}] ✗ {Path(file).name}: {e}", err=True)
+    
+    click.echo(f"\n{'='*40}")
+    click.echo(f"✓ Success: {len(results['success'])}")
+    click.echo(f"✗ Failed: {len(results['failed'])}")
+
+
 @cli.command("prepare")
 @click.argument("audio_files", nargs=-1, required=True)
 @click.option(

@@ -185,3 +185,41 @@ class AudioExtractor:
         
         if not output_file.exists():
             raise RuntimeError("Output file was not created")
+    
+    def extract_from_file(self, input_file: str, format: str = "wav", verbose: bool = False) -> Optional[str]:
+        """
+        Extract audio from a local file.
+        
+        Args:
+            input_file: Path to local audio/video file
+            format: Output format ('wav' or 'mp3')
+            verbose: Enable verbose output
+            
+        Returns:
+            Path to extracted audio file, or None on failure
+            
+        Raises:
+            AudioExtractionError: If extraction fails
+        """
+        self._check_ffmpeg()
+        
+        input_path = Path(input_file)
+        if not input_path.exists():
+            raise AudioExtractionError(f"File not found: {input_file}")
+        
+        # Sanitize format
+        format = format.lower().lstrip(".")
+        if format not in self.SUPPORTED_FORMATS:
+            raise AudioExtractionError(
+                f"Unsupported format: {format}. Supported: {', '.join(self.SUPPORTED_FORMATS)}"
+            )
+        
+        # Output filename (use input filename stem)
+        output_file = self.output_dir / f"{input_path.stem}.{format}"
+        
+        try:
+            self._convert_audio(input_path, output_file, format, verbose)
+        except Exception as e:
+            raise AudioExtractionError(f"Audio conversion failed: {e}")
+        
+        return str(output_file)
