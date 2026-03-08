@@ -11,3 +11,6 @@ src/videovoicecapturer.egg-info/dependency_links.txt
 src/videovoicecapturer.egg-info/entry_points.txt
 src/videovoicecapturer.egg-info/requires.txt
 src/videovoicecapturer.egg-info/top_level.txt
+tests/test_cli.py
+tests/test_extractor.py
+tests/test_integration.py

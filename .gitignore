@@ -1,0 +1,9 @@
+outputs/
+outputs_*/
+dataset*/
+models/
+*.wav
+xtts_*
+*.pyc
+__pycache__/
+
