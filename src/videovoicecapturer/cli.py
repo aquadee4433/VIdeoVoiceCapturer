@@ -272,6 +272,91 @@ def train(dataset_path: str, output_dir: str, model_name: str, epochs: int, batc
         sys.exit(1)
 
 
+@cli.command("cut")
+@click.argument("audio_files", nargs=-1, required=True)
+@click.option(
+    "-o", "--output", "output_dir",
+    default="./cut_audio",
+    help="Output directory for cut audio files"
+)
+@click.option(
+    "-d", "--duration",
+    default=10,
+    type=int,
+    help="Duration in seconds for each clip (default: 10)"
+)
+@click.option(
+    "-s", "--start",
+    default=0,
+    type=int,
+    help="Start position in seconds (default: 0)"
+)
+@click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
+def cut(audio_files: tuple, output_dir: str, duration: int, start: int, verbose: bool):
+    """Cut audio files to shorter clips for training.
+    
+    AUDIO_FILES: One or more audio files (wav/mp3)
+    
+    Examples:
+    
+        # Cut first 10 seconds from each file
+        vvc cut audio1.wav audio2.wav -o ./cuts -d 10
+        
+        # Cut from 30 second mark, 15 seconds each
+        vvc cut audio.wav -o ./cuts -d 15 -s 30
+    """
+    import torchaudio
+    from pathlib import Path
+    
+    audio_files = list(audio_files)
+    
+    # Create output directory
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+    
+    click.echo(f"Cutting {len(audio_files)} audio file(s) to {duration}s clips...")
+    
+    results = {"success": [], "failed": []}
+    
+    for i, file in enumerate(audio_files, 1):
+        try:
+            # Load audio
+            wav, sr = torchaudio.load(file)
+            
+            # Calculate start and end samples
+            start_sample = start * sr
+            end_sample = start_sample + (duration * sr)
+            
+            # Ensure we don't exceed audio length
+            if end_sample > wav.shape[1]:
+                end_sample = wav.shape[1]
+                if verbose:
+                    click.echo(f"  Warning: {Path(file).name} shorter than {duration}s, using {wav.shape[1]/sr:.1f}s")
+            
+            # Cut audio
+            wav_cut = wav[:, start_sample:end_sample]
+            
+            # Save
+            output_file = output_path / Path(file).name
+            torchaudio.save(str(output_file), wav_cut, sr)
+            
+            results["success"].append((file, str(output_file)))
+            click.echo(f"[{i}/{len(audio_files)}] ✓ {Path(file).name} -> {output_file.name}")
+            
+        except Exception as e:
+            results["failed"].append((file, str(e)))
+            click.echo(f"[{i}/{len(audio_files)}] ✗ {Path(file).name}: {e}", err=True)
+    
+    click.echo(f"\n{'='*40}")
+    click.echo(f"✓ Success: {len(results['success'])}")
+    click.echo(f"✗ Failed: {len(results['failed'])}")
+    
+    if results["success"]:
+        click.echo(f"\nTip: Use these cut files with 'vvc prepare' for training")
+        click.echo(f"Example: vvc prepare {output_dir}/*.wav -o ./dataset -n myvoice")
+
+
 @cli.command("infer")
 @click.argument("text", required=True)
 @click.option(
